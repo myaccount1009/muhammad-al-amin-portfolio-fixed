@@ -159,98 +159,125 @@ frame();
 </script>
 <script>
 (function(){
-var U="https://aqialrhzvthtqlzrqlft.supabase.co",K="sb_publishable_X25I4XZBnnim3C2e4GIUbA_72mLALGL";
-var box=document.getElementById('plist');
-function yt(u){var m=u.match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([\w-]{11})/);return m?m[1]:null}
-function move(dir){var card=box.querySelector('.pc');if(card)box.scrollBy({left:dir*(card.getBoundingClientRect().width+16),behavior:'smooth'});}
-document.getElementById('projectPrev').onclick=function(){move(-1)};
-document.getElementById('projectNext').onclick=function(){move(1)};
-fetch(U+"/rest/v1/projects?select=*&order=created_at.desc",{headers:{apikey:K}})
-.then(function(r){if(!r.ok)throw new Error("Projects request failed ("+r.status+")");return r.json()})
-.then(function(rows){
-box.innerHTML="";
-if(!Array.isArray(rows)||!rows.length){box.innerHTML="<p>Projects coming soon.</p>";document.getElementById('projectPrev').hidden=true;document.getElementById('projectNext').hidden=true;return}
-rows.forEach(function(p){
-var c=document.createElement('article');c.className='pc';
-if(p.video_url){
-  var videoUrl=String(p.video_url||'').trim(), id=yt(videoUrl), m;
-  if(id){
-    m=document.createElement('iframe');
-    m.src="https://www.youtube.com/embed/"+id;
-    m.allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
-    m.allowFullscreen=true;
-    m.loading="lazy";
-  } else {
-    m=document.createElement('video');
-    m.controls=true;
-    m.preload="metadata";
-    m.playsInline=true;
-    m.setAttribute('playsinline','');
-    m.setAttribute('controlsList','nodownload');
-    m.style.width='100%';
-    m.style.aspectRatio='16/9';
-    m.style.objectFit='contain';
-    m.style.display='block';
-    m.src=videoUrl;
+  var U="https://aqialrhzvthtqlzrqlft.supabase.co";
+  var K="sb_publishable_X25I4XZBnnim3C2e4GIUbA_72mLALGL";
+  var box=document.getElementById("plist");
+  var prev=document.getElementById("projectPrev");
+  var next=document.getElementById("projectNext");
 
-    var source=document.createElement('source');
-    source.src=videoUrl;
-    source.type='video/mp4';
-    m.appendChild(source);
+  function yt(u){
+    var m=String(u||"").match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([\w-]{11})/);
+    return m ? m[1] : null;
+  }
 
-    var loaded=false;
-    m.addEventListener('loadedmetadata',function(){
-      loaded=true;
-      console.log('Project video loaded:',videoUrl,'duration:',m.duration);
-    },{once:true});
-
-    m.addEventListener('canplay',function(){
-      console.log('Project video can play:',videoUrl);
-    },{once:true});
-
-    m.addEventListener('error',function(){
-      var err=m.error;
-      console.error('Project video error:',{
-        code:err&&err.code,
-        message:err&&err.message,
-        url:videoUrl,
-        networkState:m.networkState,
-        readyState:m.readyState
+  function move(dir){
+    var card=box.querySelector(".pc");
+    if(card){
+      box.scrollBy({
+        left:dir*(card.getBoundingClientRect().width+16),
+        behavior:"smooth"
       });
+    }
+  }
 
-      var fallback=c.querySelector('.video-fallback');
-      if(!fallback){
-        fallback=document.createElement('p');
-        fallback.className='video-fallback';
-        fallback.style.padding='12px 18px';
-        fallback.style.margin='0';
-        fallback.style.color='var(--mute)';
-        fallback.textContent='Video could not be loaded in the embedded player. ';
+  prev.onclick=function(){ move(-1); };
+  next.onclick=function(){ move(1); };
 
-        var link=document.createElement('a');
-        link.href=videoUrl;
-        link.target='_blank';
-        link.rel='noopener noreferrer';
-        link.textContent='Open video';
-        link.style.color='var(--gold)';
-        fallback.appendChild(link);
-        c.appendChild(fallback);
+  fetch(U+"/rest/v1/projects?select=id,title,description,video_url,created_at&order=created_at.desc",{
+    headers:{
+      "apikey":K,
+      "Accept":"application/json"
+    }
+  })
+  .then(function(r){
+    if(!r.ok){
+      throw new Error("Projects request failed: HTTP "+r.status);
+    }
+    return r.json();
+  })
+  .then(function(rows){
+    rows=Array.isArray(rows) ? rows : [];
+    box.innerHTML="";
+
+    if(!rows.length){
+      box.innerHTML="<p>Projects coming soon.</p>";
+      prev.hidden=true;
+      next.hidden=true;
+      return;
+    }
+
+    rows.forEach(function(p){
+      var c=document.createElement("article");
+      c.className="pc";
+
+      if(p.video_url){
+        var videoUrl=String(p.video_url).trim();
+        var id=yt(videoUrl);
+        var media;
+
+        if(id){
+          media=document.createElement("iframe");
+          media.src="https://www.youtube.com/embed/"+id;
+          media.allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+          media.allowFullscreen=true;
+          media.loading="lazy";
+        }else{
+          media=document.createElement("video");
+          media.controls=true;
+          media.preload="metadata";
+          media.playsInline=true;
+          media.setAttribute("playsinline","");
+          media.setAttribute("controlsList","nodownload");
+          media.style.width="100%";
+          media.style.aspectRatio="16/9";
+          media.style.objectFit="contain";
+          media.style.display="block";
+
+          var source=document.createElement("source");
+          source.src=videoUrl;
+          source.type="video/mp4";
+          media.appendChild(source);
+
+          media.addEventListener("loadedmetadata",function(){
+            console.log("Project video loaded. Duration:",media.duration);
+          });
+
+          media.addEventListener("error",function(){
+            console.error("Project video error:",media.error,"URL:",videoUrl);
+          });
+
+          media.load();
+        }
+
+        c.appendChild(media);
       }
+
+      var d=document.createElement("div");
+      var h=document.createElement("h3");
+      var desc=document.createElement("p");
+
+      h.textContent=p.title || "Project";
+      desc.textContent=p.description || "";
+
+      d.appendChild(h);
+      if(desc.textContent){
+        d.appendChild(desc);
+      }
+
+      c.appendChild(d);
+      box.appendChild(c);
     });
 
-    // Set the URL directly and then force metadata loading.
-    // This is more reliable than changing only a <source> element
-    // when projects are rendered dynamically.
-    m.load();
-  }
-}
-c.appendChild(m)}
-var d=document.createElement('div'),h=document.createElement('h3'),t=document.createElement('p');
-h.textContent=p.title||"Project";t.textContent=p.description||"";
-d.appendChild(h);if(t.textContent)d.appendChild(t);c.appendChild(d);box.appendChild(c)
-});
-var multi=rows.length>1;document.getElementById('projectPrev').hidden=!multi;document.getElementById('projectNext').hidden=!multi;
-}).catch(function(){box.innerHTML="<p>Projects couldn't load. Refresh the page.</p>"});
+    var multi=rows.length>1;
+    prev.hidden=!multi;
+    next.hidden=!multi;
+  })
+  .catch(function(err){
+    console.error("Projects load error:",err);
+    box.innerHTML="<p>Projects couldn't load. Check the browser Console for the error.</p>";
+    prev.hidden=true;
+    next.hidden=true;
+  });
 })();
 </script>
 <script>
